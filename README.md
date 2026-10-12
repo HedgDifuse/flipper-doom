@@ -9,7 +9,9 @@ firmware, no custom firmware needed.
 
 *Doom's own demo3 recording (E1M7) through this port, rendered by the PC
 simulator the way the Flipper's screen looks to the eye (screen grabs from
-qFlipper show single subframes, which look like noise).*
+qFlipper show single subframes, which look like noise). It uses one unit's
+calibration (8 levels, gamma 0.8, 75 Hz). Flipper screens differ from unit to
+unit, so on yours the grays can look lighter, darker or less even than here.*
 
 ## What it does
 
@@ -19,7 +21,8 @@ qFlipper show single subframes, which look like noise).*
 - **Gray on a 1-bit LCD.** The screen flashes up to 8 subframes per gray cycle in
   step with the LCD controller's own frame rate (75 Hz); a calibration screen finds
   that rate and the gamma for your unit. The image is dithered with outlines
-  taken from the renderer, so walls and monsters stay readable at 128x64.
+  taken from the renderer, so walls and monsters stay readable at 128x64. How
+  it works: [docs/grayscale.md](docs/grayscale.md), free for anyone to reuse.
 - **Sound and music.** Doom's digitized effects through 8-bit PWM + DMA on the
   speaker; the music is Bobby Prince's MUS tracks rendered with the DMX OPL
   instrument bank and streamed from the SD card.
@@ -45,7 +48,7 @@ A Flipper app runs from RAM, and Doom does not fit in what is left of it. So:
   sector's line list, sound origin and blockmap cells, the sounds at 11 kHz.
 
 The full story with measurements, including what did not work, is in
-[docs/PLAN.md](docs/PLAN.md) (in Russian).
+[docs/PLAN.md](docs/PLAN.md).
 
 ## Performance
 
@@ -129,3 +132,6 @@ of the problems before they reached the Flipper.
 
 GPL-2.0, as Doom8088 (see [LICENSE](LICENSE)). Doom's game data is not part of
 this repository: bring your own IWAD.
+
+The gray-level technique, as described in [docs/grayscale.md](docs/grayscale.md),
+is dedicated to the public domain (CC0): use it in any project.

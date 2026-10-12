@@ -1,10 +1,10 @@
-# Как другие порты ужимали память под объекты и уровни (исследование 12.10.2026)
+# How other ports squeezed memory for objects and levels (research from 12.10.2026)
 
-Ближе всего к нам порты next-hack (IKEA-лампа MG21: 108 КБ RAM, zone 78,6 КБ, E1M6 «typically under 75 kB»; nRF52840; MG24). Они, как и Doom8088, выросли из GBADoom, так что приёмы ложатся почти дословно.
+The closest to us are the next-hack ports (IKEA lamp MG21: 108 KB RAM, zone 78.6 KB, E1M6 "typically under 75 kB"; nRF52840; MG24). Like Doom8088, they grew out of GBADoom, so the techniques carry over almost verbatim.
 
-## Счёт по doom1.wad (skill 2, без мультиплеерных вещей)
+## Counts from doom1.wad (skill 2, no multiplayer things)
 
-| Карта | Монстры | Пикапы | Бочки | Декор | Sectors | Sides | sec->lines | Subsectors | Ячеек BM |
+| Map | Monsters | Pickups | Barrels | Decor | Sectors | Sides | sec->lines | Subsectors | BM cells |
 |---|---|---|---|---|---|---|---|---|---|
 | E1M2 | 41 | 106 | 24 | 28 | 200 | 1323 | 1322 | 448 | 1302 |
 | E1M3 | 74 | 175 | 28 | 32 | 177 | 1326 | 1318 | 461 | 850 |
@@ -13,27 +13,27 @@
 | E1M7 | 84 | 146 | 16 | 20 | 170 | 1223 | 1220 | 467 | 864 |
 | E1M8 | 27 | 36 | 28 | 7 | 74 | 511 | 507 | 177 | 2912 |
 
-На E1M6 кандидатов в static ~229 из 369 вещей (62%). Бочки не годятся (MF_SHOOTABLE).
+On E1M6 there are ~229 static candidates out of 369 things (62%). Barrels do not qualify (MF_SHOOTABLE).
 
-## Приёмы по убыванию «экономия / объём правок»
+## Techniques in descending order of "savings / amount of changes"
 
-1. **Префиксный static_mobj_t для пикапов и декораций** (nRF52840, MG21, MG24, rp2040, D32XR). static_mobj_t — начало mobj_t с тем же порядком полей (thinker, flags, ссылки blockmap/sector, tics, type, sprite/frame, state, subsector, x, y, z); всё ниже маркера отсутствует. Код работает через `mobj_t*`, тип выбирается флагом `MF_STATIC (MF_DECORATION | MF_SPECIAL)`. radius/height через аксессоры из mobjinfo. В nRF: 92 → 44 байта, 29 упоминаний в 6 файлах. Анимированные декорации получают «безмозглый» thinker, неанимированные — NULL. Подводные камни: предметы на лифтах и в давилках (только пересчёт z, без гибсов), звук от предмета, телепорт/ZMovement не вызываются, респаун, сейвы. Прогноз для нас на E1M6: ~17 КБ, с x/y из THINGS на SD (как MG24) 20–22 КБ.
+1. **Prefix static_mobj_t for pickups and decorations** (nRF52840, MG21, MG24, rp2040, D32XR). static_mobj_t is the beginning of mobj_t with the same field order (thinker, flags, blockmap/sector links, tics, type, sprite/frame, state, subsector, x, y, z); everything below the marker is absent. Code works through `mobj_t*`, the type is selected by the flag `MF_STATIC (MF_DECORATION | MF_SPECIAL)`. radius/height via accessors from mobjinfo. In nRF: 92 → 44 bytes, 29 references in 6 files. Animated decorations get a "brainless" thinker, non-animated ones get NULL. Pitfalls: items on lifts and in crushers (only z recalculation, no gibs), sound from an item, teleport/ZMovement are not called, respawn, savegames. Forecast for us on E1M6: ~17 KB, with x/y from THINGS on SD (as in MG24) 20–22 KB.
    - nRF52840Doom: `Doom/include/p_mobj.h` (MOBJ_SIZE 92, STATIC_MOBJ_SIZE 44), `source/p_mobj.c` (P_SpawnStaticMobj, P_RemoveStaticMobj), `p_map.c`.
-   - rp2040: ядро mobj_t 32 байта + mobjfull_t 84 байта, `src/doom/p_mobj.h`.
+   - rp2040: mobj_t core 32 bytes + mobjfull_t 84 bytes, `src/doom/p_mobj.h`.
    - D32XR: `static_mobj_size (offsetof(mobj_t,angle))`, P_PreSpawnMobjs.
-   - MG24: static 20/29 байт, x/y во flash по pos_index, константные флаги из mobjinfo.
-2. **Убрать msecnode_t, вернуть ванильный P_ChangeSector** (MG24, `USE_MSECNODE`). touching_thinglist нужен только P_CheckSector; вместо него обход blockmap по bbox сектора + MAXRADIUS. Экономия: ноды × 28 байт + 4 байта на mobj и сектор, на E1M6 ~10 КБ (снять счётчиком). Бонус: меньше CPU на P_SetThingPosition.
-3. **Short pointers / 16-битные индексы** (nRF `i_memory.h`, rp2040 `shortptr_t`, D32XR `SPTR`). У STM32WB55 RAM 0x20000000–0x2003FFFF, 16 бит × 4 покрывают всё (при выравнивании zone на 4). По выгоде: blocklinks uint16 (E1M6 −3,5 КБ, E1M8 −5,8 КБ; правки в P_LoadBlockMap, P_Set/UnsetThingPosition, P_BlockThingsIterator), ссылки в mobj и thinker (−2 байта каждая), индексы в subsector/mobj (sector_num, state_idx).
-4. **Односвязные цепочки** sector/blockmap: убрать sprev/bprev (−8 байт на mobj), unlink линейным проходом.
-5. **Уплотнение полей mobj** (MG24 92 → 52): z/floorz/ceilingz в 16 бит, momx/momy 24 бита, angle 16 бит, битовые поля счётчиков, без lastenemy. Ещё 4–9 КБ на E1M6, но трогает арифметику.
-6. **Константное — во flash/на SD, в RAM только изменяемое**: sector_t делится на константу и ramSector_t (16 байт; на E1M6 9–11 КБ), sides целиком константны + маленький список изменённых текстур переключателей (E1M6 −13,8 КБ, но рендер читает sides с SD — риск fps), sector->lines готовым лампом, subsectors битовыми полями.
-7. **Аллокатор**: заголовок блока 8 байт вместо 16 (nRF), пулы с битовой маской.
+   - MG24: static 20/29 bytes, x/y in flash by pos_index, constant flags from mobjinfo.
+2. **Remove msecnode_t, restore vanilla P_ChangeSector** (MG24, `USE_MSECNODE`). touching_thinglist is needed only by P_CheckSector; instead, walk the blockmap over the sector bbox + MAXRADIUS. Savings: nodes × 28 bytes + 4 bytes per mobj and sector, ~10 KB on E1M6 (to be measured with a counter). Bonus: less CPU in P_SetThingPosition.
+3. **Short pointers / 16-bit indices** (nRF `i_memory.h`, rp2040 `shortptr_t`, D32XR `SPTR`). The STM32WB55 RAM is 0x20000000–0x2003FFFF, 16 bits × 4 covers all of it (with the zone aligned to 4). By benefit: blocklinks uint16 (E1M6 −3.5 KB, E1M8 −5.8 KB; changes in P_LoadBlockMap, P_Set/UnsetThingPosition, P_BlockThingsIterator), links in mobj and thinker (−2 bytes each), indices in subsector/mobj (sector_num, state_idx).
+4. **Singly linked chains** for sector/blockmap: remove sprev/bprev (−8 bytes per mobj), unlink with a linear pass.
+5. **Packing mobj fields** (MG24 92 → 52): z/floorz/ceilingz in 16 bits, momx/momy 24 bits, angle 16 bits, bit fields for counters, no lastenemy. Another 4–9 KB on E1M6, but it touches the arithmetic.
+6. **Constant data in flash/on SD, only mutable data in RAM**: sector_t is split into a constant part and ramSector_t (16 bytes; 9–11 KB on E1M6), sides are entirely constant + a small list of changed switch textures (E1M6 −13.8 KB, but the renderer reads sides from SD, a fps risk), sector->lines as a prebuilt lump, subsectors as bit fields.
+7. **Allocator**: 8-byte block header instead of 16 (nRF), pools with a bitmask.
 
-## Порядок для E1M6 (128 → ≤82 КБ)
+## Order for E1M6 (128 → ≤82 KB)
 
-static_mobj (~17 КБ) → убрать msecnode (~10 КБ) → blocklinks uint16 (~3,5 КБ) → sides на SD или split sector_t (~10–14 КБ). Первые три: ~30 КБ при небольших правках.
+static_mobj (~17 KB) → remove msecnode (~10 KB) → blocklinks uint16 (~3.5 KB) → sides on SD or split sector_t (~10–14 KB). The first three: ~30 KB with small changes.
 
-## Источники
+## Sources
 
 - https://next-hack.com/index.php/2021/11/13/porting-doom-to-an-nrf52840-based-usb-bluetooth-le-dongle/
 - https://github.com/next-hack/nRF52840Doom

@@ -1,247 +1,247 @@
-# Настоящий Doom на Flipper Zero: замеры и архитектура
+# Real Doom on Flipper Zero: measurements and architecture
 
-## Замеры (10.10.2026, SDK 1.5.1-rc из ~/.ufbt)
+## Measurements (10.10.2026, SDK 1.5.1-rc from ~/.ufbt)
 
-**Flipper (STM32WB55, Cortex-M4F 64 МГц)**
-- Heap: `__heap_start__` 0x20001500, `__heap_end__` 0x2002FC00, итого 186 КБ на прошивку и приложения. На устройстве (официальная 1.5.1-rc, рабочий стол, `free`): свободно 141 264 Б, самый большой блок 132 032 Б, исторический минимум 98 448 Б. Радиостек 1.20.0 занимает 116 КБ flash, FUS 24 КБ.
-- Flash: прошивка заканчивается на 0x080BC4DC (753 КБ), радиостек начинается с 0x080D7000 (`Radio address` в update.fuf). Свободно 0x080BD000-0x080D7000 = 104 КБ (26 страниц по 4 КБ).
-- `furi_hal_flash_*` в api_symbols.csv помечены `-`, то есть FAP-у недоступны.
-- FAP целиком грузится в RAM: код тоже занимает heap.
+**Flipper (STM32WB55, Cortex-M4F 64 MHz)**
+- Heap: `__heap_start__` 0x20001500, `__heap_end__` 0x2002FC00, 186 KB total for the firmware and apps. On the device (official 1.5.1-rc, desktop, `free`): 141,264 B free, largest block 132,032 B, historical minimum 98,448 B. Radio stack 1.20.0 takes 116 KB of flash, FUS 24 KB.
+- Flash: the firmware ends at 0x080BC4DC (753 KB), the radio stack starts at 0x080D7000 (`Radio address` in update.fuf). Free: 0x080BD000-0x080D7000 = 104 KB (26 pages of 4 KB).
+- `furi_hal_flash_*` are marked `-` in api_symbols.csv, so they are not available to a FAP.
+- A FAP is loaded entirely into RAM: the code also takes heap.
 
-**Движки (arm-none-eabi-gcc -Os, Cortex-M4)**
+**Engines (arm-none-eabi-gcc -Os, Cortex-M4)**
 
-| | .text | .data | .bss | примечание |
+| | .text | .data | .bss | note |
 |---|---|---|---|---|
-| doomgeneric (chocolate) | 221 КБ | 60 КБ | 244 КБ | плюс zone на мегабайты, не вариант |
-| next-hack nRF52840 (GBADoom/PrBoom) | 245 КБ | 122 КБ* | 19 КБ | *113 КБ из них zone-массив; tables.o 81 КБ, info.o 27 КБ |
+| doomgeneric (chocolate) | 221 KB | 60 KB | 244 KB | plus a zone of megabytes, not an option |
+| next-hack nRF52840 (GBADoom/PrBoom) | 245 KB | 122 KB* | 19 KB | *113 KB of it is the zone array; tables.o 81 KB, info.o 27 KB |
 
-## Вывод по архитектуре
+## Architecture conclusion
 
-Обычный FAP на стоковой прошивке не потянет настоящий движок: только код ≥150 КБ (даже после ужатия таблиц) плюс ≥60-100 КБ рабочей памяти, а это больше всего heap.
+A regular FAP on stock firmware cannot handle the real engine: the code alone is ≥150 KB (even after shrinking the tables), plus ≥60-100 KB of working memory, and that is more than the whole heap.
 
-**Рекомендуемый путь: своя прошивка (форк официальной), Doom как встроенное приложение.**
-- Код исполняется из flash (XIP), RAM уходит на данные.
-- Выкидываем тяжёлые приложения (NFC/SubGHz/Infrared и т.п.), освобождаем 250-350 КБ flash: около 200 КБ под код и остаток под кэш уровня.
-- Откат на сток через qFlipper в любой момент.
-- База движка: next-hack nRF52840Doom (вся работа по памяти уже сделана, ванильный рендер). Его WAD лежит в memory-mapped QSPI. У нас роль QSPI играет регион internal flash, куда при загрузке уровня копируются нужные лампы с SD.
+**Recommended path: custom firmware (a fork of the official one), Doom as a built-in app.**
+- Code executes from flash (XIP), RAM goes to data.
+- Drop heavy apps (NFC/SubGHz/Infrared etc.) to free 250-350 KB of flash: about 200 KB for code and the rest for a level cache.
+- Rollback to stock via qFlipper at any time.
+- Engine base: next-hack nRF52840Doom (all the memory work is already done, vanilla renderer). Its WAD sits in memory-mapped QSPI. In our case the role of QSPI is played by a region of internal flash, where the needed lumps are copied from SD on level load.
 
-**WAD с SD.** На ПК конвертируем DOOM1.WAD в компактный формат (по мотивам MCUDoomWadUtil): текстуры даунскейл 2x, палитра в 4-бит яркость, уровни в упакованных структурах. На SD лежит этот файл, не сырой WAD. Стримить с SD покадрово нельзя: SPI + FatFS дают задержку в миллисекунды на каждое чтение.
+**WAD from SD.** On the PC we convert DOOM1.WAD into a compact format (inspired by MCUDoomWadUtil): textures downscaled 2x, palette to 4-bit brightness, levels in packed structures. The SD card holds this file, not the raw WAD. Streaming from SD per frame is not possible: SPI + FatFS add milliseconds of latency to every read.
 
-**Рендер 128×64.** Фреймбуфер 8 КБ вместо 64 КБ. Заливка дешёвая (8K пикселей против 38K у GBA), упираться будем в BSP и игровую логику. Ожидаемо 20-35 fps.
+**Rendering at 128×64.** An 8 KB framebuffer instead of 64 KB. Fill is cheap (8K pixels vs 38K on the GBA); the bottleneck will be BSP and game logic. Expected 20-35 fps.
 
-### Вариант «FAP + код во flash» (разобран 11.10.2026)
+### Option "FAP + code in flash" (analyzed 11.10.2026)
 
-Технически реализуем:
-- Прошивка 1.5.1-rc вообще не пишет во flash: `furi_hal_flash_erase/program` вырезаны линкером, осталась только `furi_hal_flash_init`. Значит, область 0x080BD000-0x080D7000 (104 КБ, выше начинается защищённая область радиостека, SFSA=0xD7) никто не трогает.
-- На устройстве (tools/flashprobe) эта область **не пустая**: до 0x080D486C лежат остатки прежней, более крупной прошивки. Строки и указатели 0x080Cxxxx, апдейтер хвост не стирает. Поэтому без стирания не обойтись.
-- FAP-у экспортированы `furi_hal_bt_lock_core2`, `furi_hal_bt_is_alive`, `__furi_critical_enter`, `furi_hal_cortex_timer_*`, а регистры HSEM/FLASH доступны через CMSIS. Не хватает только `SHCI_C2_FLASH_EraseActivity`, которой нет даже в самой прошивке. Обход через FUS не годится: переключение Stack→FUS перезагружает весь МК. Рабочий обход: стирать только при выключенном BT (`furi_hal_bt_is_active() == false`), тогда у радиоядра нет радиособытий, которые стирание могло бы сорвать.
-- Блоб движка линкуется на фиксированный адрес 0x080BD000. Вызовы прошивки идут через таблицу указателей от FAP-загрузчика, изменяемое состояние доступно через указатель (`_g` у next-hack уже так устроен). Обновление прошивки может затереть область: загрузчик сверяет CRC и переустанавливает блоб с SD.
+Technically feasible:
+- Firmware 1.5.1-rc does not write to flash at all: `furi_hal_flash_erase/program` are removed by the linker, only `furi_hal_flash_init` remains. So nobody touches the region 0x080BD000-0x080D7000 (104 KB; above it starts the protected radio stack area, SFSA=0xD7).
+- On the device (tools/flashprobe) this region is **not empty**: up to 0x080D486C there are leftovers of an earlier, larger firmware. Strings and 0x080Cxxxx pointers; the updater does not erase the tail. So erasing cannot be avoided.
+- `furi_hal_bt_lock_core2`, `furi_hal_bt_is_alive`, `__furi_critical_enter`, `furi_hal_cortex_timer_*` are exported to FAPs, and the HSEM/FLASH registers are accessible via CMSIS. The only missing piece is `SHCI_C2_FLASH_EraseActivity`, which is not even in the firmware itself. A workaround via FUS does not work: switching Stack→FUS reboots the whole MCU. Working workaround: erase only with BT off (`furi_hal_bt_is_active() == false`); then the radio core has no radio events that the erase could disrupt.
+- The engine blob is linked at the fixed address 0x080BD000. Firmware calls go through a pointer table from the FAP loader; mutable state is reached through a pointer (next-hack's `_g` already works this way). A firmware update may overwrite the region: the loader checks the CRC and reinstalls the blob from SD.
 
-**Проверено на железе 11.10.2026 (tools/flashexec):** FAP записал 1088 байт в пустую страницу 0x080D6000 за 11.8 мс при включённом BT. Функция исполнилась прямо из flash и вызвала колбэк в RAM приложения (результат 1084, как ожидалось), 1024-байтный узор прочитан без ошибок, после перезагрузки всё на месте. Стирание при выключенном BT тоже проверено: страница стирается за 22.3 мс, радиостек жив (radio.alive, mode Stack), полный цикл запись → запуск → стирание повторён. Оценка установки 104 КБ: 26 страниц × 22 мс на стирание плюс около 1.2 с на запись, всего около 2 с.
+**Verified on hardware 11.10.2026 (tools/flashexec):** the FAP wrote 1088 bytes to an empty page at 0x080D6000 in 11.8 ms with BT on. The function executed directly from flash and called a callback in the app's RAM (result 1084, as expected); a 1024-byte pattern read back without errors; after reboot everything was still there. Erasing with BT off was verified too: a page erases in 22.3 ms, the radio stack stays alive (radio.alive, mode Stack); the full write → run → erase cycle was repeated. Estimate for installing 104 KB: 26 pages × 22 ms for erase plus about 1.2 s for writing, about 2 s in total.
 
-Но по объёму не влезает:
-- Есть: 104 КБ flash плюс самый большой блок RAM 128-132 КБ (замер изнутри FAP), всего около 236 КБ.
-- Нужно: движок next-hack после линковки с gc-sections весит 101 КБ кода и 139 КБ констант. После ужатия под 128 px (finesine 40→8 КБ, finetangent 16→8, viewangletox 8→4, без stbar/finale/gamma) останется около 170 КБ. Сверху данные: zone с мобами, геометрия уровня (у next-hack она в отображаемом flash, у нас окажется в RAM) и кэш текстур, ещё 100-130 КБ.
-- Дефицит 40-60 КБ даже после ужатия. Полный Doom как FAP не получится, возможна только урезанная версия.
+But it does not fit in size:
+- Available: 104 KB of flash plus the largest RAM block of 128-132 KB (measured from inside a FAP), about 236 KB in total.
+- Needed: the next-hack engine linked with gc-sections is 101 KB of code and 139 KB of constants. After shrinking for 128 px (finesine 40→8 KB, finetangent 16→8, viewangletox 8→4, no stbar/finale/gamma) about 170 KB remain. On top of that comes data: the zone with mobs, level geometry (next-hack keeps it in mapped flash, for us it would be in RAM) and a texture cache, another 100-130 KB.
+- A deficit of 40-60 KB even after shrinking. Full Doom as a FAP will not work; only a cut-down version is possible.
 
-Для сравнения своя прошивка: NFC-семейство ~90 КБ, SubGHz ~74 КБ, RFID/iButton/ИК ~38 КБ, плюс свободные 104 КБ, итого около 300 КБ flash.
+For comparison, custom firmware: the NFC family ~90 KB, SubGHz ~74 KB, RFID/iButton/IR ~38 KB, plus the free 104 KB, about 300 KB of flash in total.
 
-Отвергнутые варианты:
-- Doom-подобный raycaster как FAP: уже существует (p4nic4ttack), это не настоящий Doom.
+Rejected options:
+- A Doom-like raycaster as a FAP: already exists (p4nic4ttack), and it is not real Doom.
 
-## Doom8088 как база (11.10.2026)
+## Doom8088 as the base (11.10.2026)
 
-Самый урезанный настоящий Doom из найденных: [Doom8088](https://github.com/FrenkelS/Doom8088) (GBADoom → 16-бит DOS). Только E1, пол и потолок без текстур, без затухания света и сохранений. WAD предобрабатывается [jWadUtil](https://github.com/FrenkelS/jWadUtil) (wad/DOOM8088.WAD, 1.5 МБ) и читается через fopen/fread, то есть годится для SD. У того же автора есть [Doom64KB](https://github.com/FrenkelS/Doom64KB): 64 КБ RAM, но данные уровней лежат в ROM, а играбельны только E1M1 и E1M8. milandr-doom оказался raycaster'ом doom-nano.
+The most stripped-down real Doom found: [Doom8088](https://github.com/FrenkelS/Doom8088) (GBADoom → 16-bit DOS). E1 only, untextured floor and ceiling, no light diminishing and no saves. The WAD is preprocessed by [jWadUtil](https://github.com/FrenkelS/jWadUtil) (wad/DOOM8088.WAD, 1.5 MB) and read via fopen/fread, so it works for SD. The same author has [Doom64KB](https://github.com/FrenkelS/Doom64KB): 64 KB of RAM, but level data is in ROM, and only E1M1 and E1M8 are playable. milandr-doom turned out to be the doom-nano raycaster.
 
-Порт: `port/engine` (копия Doom8088, правки помечены `flipper-doom`), `port/platform` (видеобэкенд 120 px), `port/sim` (симулятор, `ZONE_KB=.. bash build.sh` в WSL, `-m32`). Параметры: `-noxms` (читать WAD с диска, как с SD), `-warp N`, `FZ_FRAMES`, `FZ_DUMP`, сборка с `EXTRA=-DFZ_MEMTRACE` печатает память по шагам загрузки уровня.
+Port: `port/engine` (a copy of Doom8088, changes marked `flipper-doom`), `port/platform` (120 px video backend), `port/sim` (simulator, `ZONE_KB=.. bash build.sh` in WSL, `-m32`). Options: `-noxms` (read the WAD from disk, like from SD), `-warp N`, `FZ_FRAMES`, `FZ_DUMP`; a build with `EXTRA=-DFZ_MEMTRACE` prints memory at each step of level loading.
 
-Размеры (arm-none-eabi -Os, gc-sections): 51 КБ кода + 42 КБ констант (из них fullcolormap 8.7 КБ на деле должен быть в RAM) + 33 КБ bss (columnCache 16 КБ).
+Sizes (arm-none-eabi -Os, gc-sections): 51 KB of code + 42 KB of constants (of which fullcolormap, 8.7 KB, actually has to be in RAM) + 33 KB bss (columnCache 16 KB).
 
-Куча (zone) до загрузки уровня, 57 КБ:
-- каталог WAD 15.7 КБ + lumpcache 3.9 КБ;
-- кадровый буфер 120×160 19.2 КБ (можно ужать до 120×64);
-- спрайты 8.4 КБ, текстуры 9.7 КБ.
+Heap (zone) before level load, 57 KB:
+- WAD directory 15.7 KB + lumpcache 3.9 KB;
+- 120×160 framebuffer 19.2 KB (can be shrunk to 120×64);
+- sprites 8.4 KB, textures 9.7 KB.
 
-Данные уровня в куче:
+Level data in the heap:
 
 | E1M1 | E1M2 | E1M3 | E1M4 | E1M5 | E1M6 | E1M7 | E1M8 | E1M9 |
 |---|---|---|---|---|---|---|---|---|
 | 80 | 167 | 181 | 136 | 139 | >200 | 169 | 79 | 119 |
 
-(КБ, без кэша текстур и спрайтов.) Скорость не проблема: timedemo demo3 на ПК даёт 1821 fps.
+(KB, excluding texture and sprite caches.) Speed is not a problem: timedemo demo3 on the PC gives 1821 fps.
 
-Бюджет FAP (104 КБ flash + ~132 КБ RAM): код и константы ~90 КБ во flash; в RAM bss ~42 КБ (с fullcolormap), стек и стаб ~9 КБ, на кучу остаётся ~81 КБ. Даже E1M1 после ужатия базы (~25 КБ) + 80 КБ уровня + ~10 КБ кэша ≈ 115 КБ, перебор ~35 КБ. Чтобы FAP заработал, нужны хирургия уровня Doom64KB (статические данные уровня вне RAM) и подкачка с SD через кэш. Своя прошивка (~300 КБ flash под код + статические данные уровня) снимает проблему для всего E1.
+FAP budget (104 KB flash + ~132 KB RAM): code and constants ~90 KB in flash; in RAM, bss ~42 KB (with fullcolormap), stack and stub ~9 KB, leaving ~81 KB for the heap. Even E1M1 after shrinking the base (~25 KB) + 80 KB of level + ~10 KB of cache ≈ 115 KB, ~35 KB over. For the FAP to work we need Doom64KB-level surgery (static level data outside RAM) and paging from SD through a cache. Custom firmware (~300 KB of flash for code + static level data) removes the problem for all of E1.
 
-## Ужатие под FAP (11.10.2026, вариант «обычное приложение, E1M1 + E1M8»)
+## Shrinking for a FAP (11.10.2026, option "regular app, E1M1 + E1M8")
 
-Целевой бюджет RAM: ~116 КБ (самый большой блок кучи 132 КБ минус стек, загрузчик и запас).
-Мерить: `bash port/tools/armsize.sh` (статика на ARM) + `port/tools/zonefit.sh N` в WSL (минимальная куча, игрок ходит по скрипту).
+Target RAM budget: ~116 KB (largest heap block 132 KB minus stack, loader and margin).
+How to measure: `bash port/tools/armsize.sh` (static memory on ARM) + `port/tools/zonefit.sh N` in WSL (minimal heap, the player walks a scripted route).
 
-| шаг | статика | куча E1M1 | итого |
+| step | static | E1M1 heap | total |
 |---|---|---|---|
-| исходно (120×128) | 42.8 | 122 | ~165 |
-| окно 120×64, columnCache 128→32 | 30.3 | 122 | 152 |
-| подкачка SEGS/NODES/BLOCKMAP/REJECT, 24 страницы по 512 Б | 42.8 | 98 | 141 |
-| colormap → константная таблица яркости во flash | 34.1 | 98 | 132 |
-| каталог WAD на SD через подкачку (в RAM только хэши имён) | 34.0 | 85 | 119 |
-| лимиты рендера под высоту 64 (openings, drawsegs, vissprites) | 29.9 | 85 | **~115** |
+| baseline (120×128) | 42.8 | 122 | ~165 |
+| 120×64 window, columnCache 128→32 | 30.3 | 122 | 152 |
+| paging SEGS/NODES/BLOCKMAP/REJECT, 24 pages of 512 B | 42.8 | 98 | 141 |
+| colormap → constant brightness table in flash | 34.1 | 98 | 132 |
+| WAD directory on SD via paging (only name hashes in RAM) | 34.0 | 85 | 119 |
+| renderer limits for height 64 (openings, drawsegs, vissprites) | 29.9 | 85 | **~115** |
 
-Flash: 97 КБ из 104 (вместе с таблицей яркости 8.7 КБ); на код платформы Flipper остаётся ~7 КБ, так что ненужные модули (меню, финал, заставки между уровнями, статус-бар) придётся выкинуть.
+Flash: 97 KB of 104 (including the 8.7 KB brightness table); ~7 KB remain for the Flipper platform code, so unneeded modules (menu, finale, intermission screens, status bar) will have to go.
 
-Подкачка (замеры SD на устройстве, tools/sdbench): последовательно 1.26 МБ/с, случайное чтение 32 Б ~0.94 мс, 512 Б ~1.5 мс, 4 КБ ~4.2 мс, накладные расходы сервиса storage ~0.36 мс. В симуляторе по этой модели: E1M1 ~1 промах на кадр (~1.4 мс SD), E1M8 0.2 (~0.3 мс). Кэш 8 КБ давал на E1M1 13.5 мс на кадр, 12 КБ уже 1.25 мс.
+Paging (SD measurements on the device, tools/sdbench): sequential 1.26 MB/s, random read of 32 B ~0.94 ms, 512 B ~1.5 ms, 4 KB ~4.2 ms, storage service overhead ~0.36 ms. In the simulator with this model: E1M1 ~1 miss per frame (~1.4 ms of SD), E1M8 0.2 (~0.3 ms). An 8 KB cache gave 13.5 ms per frame on E1M1, 12 KB already 1.25 ms.
 
-Пиксель = 6 бит яркости + 2 бита класса (стена/пол/спрайт/прочее), colormap генерируется `port/tools/mklum.py` с тон-кривой из лаборатории дизеринга.
+Pixel = 6 bits of brightness + 2 bits of class (wall/floor/sprite/other); the colormap is generated by `port/tools/mklum.py` with the tone curve from the dithering lab.
 
-Запас тонкий: куча мерилась на скриптовом маршруте. В реальной игре с проснувшимися монстрами может понадобиться больше. Резервы: отфильтровать THINGS под среднюю сложность (−2.6 КБ), выкинуть лишние лампы из WAD.
+The margin is thin: the heap was measured on a scripted route. In a real game with awakened monsters more may be needed. Reserves: filter THINGS for medium difficulty (−2.6 KB), drop unneeded lumps from the WAD.
 
-Дальше: блоб движка во flash (данные через r9/GOT, т.к. адрес RAM известен только при запуске), слой Flipper (экран, кнопки, SD, таймер), дизеринг G на C, установщик блоба.
+Next: the engine blob in flash (data via r9/GOT, since the RAM address is only known at launch), the Flipper layer (screen, buttons, SD, timer), dithering G in C, the blob installer.
 
-## Doom работает на Flipper (11.10.2026)
+## Doom runs on the Flipper (11.10.2026)
 
-Обычный FAP на стоковой 1.5.1-rc, E1M1 играется. Схема:
-- `port/flipper/build_blob.sh`: движок + слой Flipper собираются с `-fPIC -msingle-pic-base -mpic-register=r9 -mno-pic-data-is-text-relative -flto`, линкуются по `blob.ld` (код с 0x080BD040, данные на заглушке 0x10000000). `tools/mkblob.py` проверяет, что из flash нет абсолютных ссылок на RAM, и пакует `engine.bin` (заголовок, образ, список поправок). Образ 101.5 КБ из 104, RAM движка 27.9 КБ.
-- `port/flipper/fap`: загрузчик. При несовпадении образа (заголовок + CRC) пишет его во flash (BT должен быть выключен, только на 1.5.1-rc), выделяет RAM, поправляет адреса, вызывает движок трамплином с r9. Движок ходит в прошивку только через `fz_api_t` (malloc, чтение WAD, время, кнопки, буфер кадра, vsnprintf=`__wrap_vsnprintf`, лог).
-- Трассировка запуска пишется в `/ext/apps_data/flipper_doom/last_run.txt`.
+A regular FAP on stock 1.5.1-rc, E1M1 is playable. Layout:
+- `port/flipper/build_blob.sh`: the engine + Flipper layer are built with `-fPIC -msingle-pic-base -mpic-register=r9 -mno-pic-data-is-text-relative -flto` and linked with `blob.ld` (code from 0x080BD040, data at a placeholder 0x10000000). `tools/mkblob.py` checks that flash has no absolute references to RAM and packs `engine.bin` (header, image, relocation list). Image 101.5 KB of 104, engine RAM 27.9 KB.
+- `port/flipper/fap`: the loader. If the image does not match (header + CRC) it writes it to flash (BT must be off, 1.5.1-rc only), allocates RAM, applies relocations, and calls the engine through a trampoline with r9. The engine reaches the firmware only through `fz_api_t` (malloc, WAD reads, time, buttons, framebuffer, vsnprintf=`__wrap_vsnprintf`, log).
+- The startup trace is written to `/ext/apps_data/flipper_doom/last_run.txt`.
 
-Грабли:
-- OOM был из-за того, что ZONE_SIZE не передавался в сборку образа: z_zone.c брал DOS-умолчание 640 КБ. Теперь макрос в общем defs.sh.
-- В newlib atoi -> strtol -> errno (_impure_ptr в RAM): свой atoi. Свои malloc/printf/exit поверх API, заглушки __aeabi_unwind_cpp_pr*.
-- ECC: 64-битное слово во flash пишется один раз; заголовок образа пропускается при первом проходе и пишется последним.
-- Куча на устройстве плавает: крупнейший блок после RAM движка 89-97 КБ. Сейчас зона 84 КБ (в симуляторе на маршруте нужно 85), во время игры у прошивки ~12.7 КБ.
-- `input send back press/release` через CLI закрывает экран ожидания; `ufbt launch` не перезапускает висящее приложение.
+Pitfalls:
+- The OOM happened because ZONE_SIZE was not passed to the image build: z_zone.c used the DOS default of 640 KB. The macro is now in the shared defs.sh.
+- In newlib atoi -> strtol -> errno (_impure_ptr in RAM): own atoi. Own malloc/printf/exit on top of the API, stubs for __aeabi_unwind_cpp_pr*.
+- ECC: a 64-bit flash word can be written only once; the image header is skipped on the first pass and written last.
+- The heap on the device fluctuates: the largest block after engine RAM is 89-97 KB. The zone is now 84 KB (the simulator route needs 85); during play the firmware has ~12.7 KB.
+- `input send back press/release` via CLI closes the waiting screen; `ufbt launch` does not restart a hung app.
 
-## Оттенки серого на 1-битном ЖК (11.10.2026)
+## Grayscale on a 1-bit LCD (11.10.2026)
 
-Матрица Flipper медленная: быстро мигающий пиксель выглядит серым. Поток `gray_display` в загрузчике гоняет подкадры: уровень L из P = пиксель горит в L подкадрах из P. По технике zephray.me импульсы размазаны по периоду (50% = вкл/выкл через подкадр), а у каждого пикселя блока 4×4 своя фаза, так что мерцание превращается в мелкое зерно. Тест `tools/lcdgray` (режимы naive/spread 3/4/6/8).
+The Flipper's panel is slow: a fast-blinking pixel looks gray. The `gray_display` thread in the loader cycles subframes: level L out of P = the pixel is on in L of P subframes. Following the zephray.me technique, pulses are spread over the period (50% = on/off every other subframe), and each pixel in a 4×4 block has its own phase, so flicker turns into fine grain. Test: `tools/lcdgray` (modes naive/spread 3/4/6/8).
 
-Главное открытие: у ST7567 своя частота кадров от внутреннего генератора, 70-80 Гц (типично 75), её нельзя задать командой и синхронизироваться не с чем. Если частота подкадров не совпадает с ней, строки получают одни подкадры дважды, а другие пропускают, и серые медленно «плывут» (особенно видно на неподвижной стене). Решение: калибровка частоты с шагом 0.1 Гц до неподвижной картинки плюс темп, выдержанный по счётчику тактов (сон до ~1 мс до срока, остаток спином), подкадр собирается заранее и отправляется ровно в срок. На устройстве пользователя ровная картинка ровно на 75.0 Гц при любом числе уровней (сохранено: rate10=750 period=8 gamma=130). Замер: за 31 с игры один подкадр опоздал больше 1 мс (худший 1.15 мс), шина SPI, общая с SD, не мешает; Doom 10.7 fps, сборка подкадра 2.55 мс, отправка 2.57 мс.
+Key finding: the ST7567 has its own frame rate from an internal oscillator, 70-80 Hz (typically 75); it cannot be set by command and there is nothing to sync to. If the subframe rate does not match it, rows get some subframes twice and miss others, and the grays slowly "drift" (especially visible on a static wall). Solution: calibrate the rate in 0.1 Hz steps until the picture is still, plus pacing held by the cycle counter (sleep until ~1 ms before the deadline, spin for the rest); the subframe is built in advance and sent exactly on time. On the test device the picture is steady at exactly 75.0 Hz for any number of levels (saved: rate10=750 period=8 gamma=130). Measurement: over 31 s of play one subframe was more than 1 ms late (worst 1.15 ms); the SPI bus shared with SD does not interfere; Doom 10.7 fps, subframe build 2.55 ms, send 2.57 ms.
 
-Калибровка (3 шага: частота, число уровней, гамма) сохраняется в `/ext/apps_data/flipper_doom/display.conf`. Движок пишет кадр 4 бита на пиксель через таблицу «яркость → уровень + доля» (`platform/fz_graymap.h`), между уровнями шахматный дизеринг.
+Calibration (3 steps: rate, number of levels, gamma) is saved to `/ext/apps_data/flipper_doom/display.conf`. The engine writes the frame at 4 bits per pixel through a "brightness → level + fraction" table (`platform/fz_graymap.h`), with checkerboard dithering between levels.
 
-Производительность: поток подкадров при ~69 Гц сначала ел ~59% CPU (Doom 5 fps). Сборка подкадра таблицами 5.8 → 2.1 мс (Doom 8.8 fps), дальше таблица на целый байт кадра; отправка на матрицу ~2.6 мс на подкадр, через API не ускоряется.
+Performance: the subframe thread at ~69 Hz initially ate ~59% CPU (Doom 5 fps). Building subframes with tables 5.8 → 2.1 ms (Doom 8.8 fps), then a table per whole frame byte; sending to the panel is ~2.6 ms per subframe and cannot be sped up through the API.
 
-Память: резерв RAM движка + кучи одним куском сразу после мелких выделений приложения (иначе куча дробится, крупнейший блок гуляет 78-97 КБ). WAD лежит отдельно в `/ext/apps_data/flipper_doom/` (1.6 МБ в ассетах рвали USB при заливке).
+Memory: engine RAM + heap are reserved as one block right after the app's small allocations (otherwise the heap fragments and the largest block wanders between 78-97 KB). The WAD is stored separately in `/ext/apps_data/flipper_doom/` (1.6 MB in assets broke USB during upload).
 
-Исправлено по ходу:
-- зависание при упоре в стену: стек игрового потока был урезан до 4.5 КБ, вернул 6 КБ (скольжение вдоль стены добавляет вызовов);
-- «размытие» при высоком fps: fz_dither очищал кадр перед записью, а поток экрана читал его параллельно и видел светлый буфер. Теперь каждый пиксель перезаписывается на месте, HUD собирается в своём буфере 8x64 и копируется целиком;
-- чёрные куски стен: при нехватке кучи под патч текстуры движок рисовал «цвет» = номер текстуры с классом пола (и тёмным контуром). Теперь R_DrawColumnMissing рисует средне-серый с освещением, как стену. Это всё ещё случается (в симуляторе при куче 86 КБ ~2500 столбцов на 3000 кадров E1M1, при 100 КБ ноль).
-- Пробовали страницы подкачки в общей куче (вытесняемые блоки): пропуски исчезают, но SD 26 мс на кадр, откатили.
+Fixed along the way:
+- hang when pushing into a wall: the game thread stack had been cut to 4.5 KB, restored to 6 KB (sliding along a wall adds calls);
+- "blur" at high fps: fz_dither cleared the frame before writing, while the display thread read it in parallel and saw a light buffer. Now every pixel is overwritten in place; the HUD is built in its own 8x64 buffer and copied as a whole;
+- black wall chunks: when the heap had no room for a texture patch, the engine drew a "color" = texture number with the floor class (and a dark outline). Now R_DrawColumnMissing draws mid-gray with lighting, like a wall. It still happens (in the simulator with an 86 KB heap ~2500 columns over 3000 frames of E1M1, with 100 KB zero).
+- Tried paging pages in the shared heap (purgeable blocks): the gaps disappear, but SD is 26 ms per frame; reverted.
 
-Открытые проблемы:
-- подключение по USB-CLI во время игры роняет Flipper (и, возможно, закрытие приложения);
-- куча движка на грани: нужно потоковое чтение патчей текстур/спрайтов через кэш страниц вместо загрузки целиком в кучу;
-- fps ~10-11, звук не сделан.
+Open problems:
+- connecting over USB CLI during play crashes the Flipper (and possibly closing the app);
+- the engine heap is on the edge: texture/sprite patches need to be streamed through the page cache instead of loaded whole into the heap;
+- fps ~10-11, sound not done.
 
-## Дизеринг (tools/ditherlab, сравнение: out/compare.html)
+## Dithering (tools/ditherlab, comparison: out/compare.html)
 
-Главный вывод: дизеринг яркости «в лоб» превращает Doom в кашу. Яркостный диапазон сцены узкий, 128×64 слишком мало. Нужен **дизеринг, который знает о рендерере**: рендерер и так знает про каждый пиксель, стена это, пол, спрайт или оружие.
+Main conclusion: naive brightness dithering turns Doom into mush. The scene's brightness range is narrow, and 128×64 is too small. We need **renderer-aware dithering**: the renderer already knows for each pixel whether it is a wall, floor, sprite or weapon.
 
-Выбран вариант **G**:
-- Стены: яркость через свои colormap'ы (тон-кривая вшита), 3 уровня, Bayer 4×4 в диапазоне [0.45..1]. Мир получается светлым, всё тёмное читается как объект.
-- Пол и потолок: +0.35 к яркости, почти чистые.
-- Контуры геометрии: смена seg/visplane даёт тёмный пиксель. На устройстве бесплатно: верх и низ колонки стены известны в R_RenderSegLoop.
-- Спрайты: локальный контраст и порог, тёмная кромка, светлый ореол в 1 px. Оружие: порог.
+Option **G** was chosen:
+- Walls: brightness through their own colormaps (tone curve baked in), 3 levels, Bayer 4×4 in the range [0.45..1]. The world comes out light, and everything dark reads as an object.
+- Floor and ceiling: +0.35 brightness, almost clean.
+- Geometry outlines: a change of seg/visplane gives a dark pixel. Free on the device: the top and bottom of a wall column are known in R_RenderSegLoop.
+- Sprites: local contrast and threshold, dark edge, 1 px light halo. Weapon: threshold.
 
-Временная стабильность (доля пикселей, меняющихся между кадрами, demo1):
+Temporal stability (share of pixels changing between frames, demo1):
 
-| алгоритм | поворот | бой с импом |
+| algorithm | turning | fight with an imp |
 |---|---|---|
 | Floyd-Steinberg | 45% | 43% |
-| локальный контраст + порог | 28% | 26% |
+| local contrast + threshold | 28% | 26% |
 | G | 12% | 12% |
-| blue noise «в лоб» | 5% | 4% (стабильно, но ничего не видно) |
+| naive blue noise | 5% | 4% (stable, but nothing is visible) |
 
-Диффузию ошибки не используем: она «кипит».
+We do not use error diffusion: it "boils".
 
-На железе ещё проверить: медленный отклик ST7567 позволяет попробовать временной дизеринг (чередование кадров даст дополнительные уровни серого).
+Still to check on hardware: the slow response of the ST7567 allows trying temporal dithering (alternating frames would give extra gray levels).
 
-## Скорость отрисовки и память под другие карты (11.10.2026)
+## Rendering speed and memory for other maps (11.10.2026)
 
-Стены из лампа FZTX (`port/tools/fztex.py`): каждый 4-й столбец текстуры, каждая 2-я строка, 4 бита на тексель (16 серых палитры), 32 байта на столбец, читаются через пейджер. Патчи стен в зону больше не грузятся, «чёрных» стен нет.
+Walls come from the FZTX lump (`port/tools/fztex.py`): every 4th texture column, every 2nd row, 4 bits per texel (16 palette grays), 32 bytes per column, read through the pager. Wall patches are no longer loaded into the zone; no more "black" walls.
 
-Пейджер 31 страница по 512 Б (было 22): освободили columnCache (2 КБ) и урезали MAXDRAWSEGS 72, MAXVISSPRITES 40, MAXOPENINGS ×6 (переполнений нет на трёх маршрутах по E1M1/E1M8). Офлайн-модель политик кэша (`tools/pgsim.py`, трасса `FZ_PGTRACE`): раздельные пулы под текстуры и геометрию не помогают, помогает только объём. Стоимость промаха в модели: 0,9 мс + 1,1 мкс/байт.
+Pager: 31 pages of 512 B (was 22): freed columnCache (2 KB) and cut MAXDRAWSEGS to 72, MAXVISSPRITES to 40, MAXOPENINGS to ×6 (no overflows on three routes through E1M1/E1M8). Offline model of cache policies (`tools/pgsim.py`, trace `FZ_PGTRACE`): separate pools for textures and geometry do not help; only size helps. Miss cost in the model: 0.9 ms + 1.1 us/byte.
 
-E1M1 со стартовой точки, SD мс/кадр в симуляторе: 32 (FZTX 128 Б) → 24 (4 бита) → 12,6 (31 страница). На железе до этого: 14,7 fps в среднем, dither+HUD ~21 мс/кадр (в т.ч. поток дисплея: 75 подкадров/с × (2,5 мс сборка + 2,5 мс LCD) ≈ 38% CPU).
+E1M1 from the start point, SD ms/frame in the simulator: 32 (FZTX 128 B) → 24 (4 bits) → 12.6 (31 pages). On hardware before this: 14.7 fps on average, dither+HUD ~21 ms/frame (including the display thread: 75 subframes/s × (2.5 ms build + 2.5 ms LCD) ≈ 38% CPU).
 
-Память (минимальная зона в симуляторе, КБ):
+Memory (minimal zone in the simulator, KB):
 
 | | E1M1 | E1M2 | E1M3 | E1M4 | E1M5 | E1M6 | E1M7 | E1M8 | E1M9 |
 |---|---|---|---|---|---|---|---|---|---|
-| было | 85 | 139 | 154 | 122 | 126 | 193 | 161 | 85 | 122 |
-| стало | 54 | 93 | 104 | 81 | 85 | 130 | 110 | 61 | 83 |
+| before | 85 | 139 | 154 | 122 | 126 | 193 | 161 | 85 | 122 |
+| after | 54 | 93 | 104 | 81 | 85 | 130 | 110 | 61 | 83 |
 
-Что дало:
-- lumpcache: 64 записи вместо указателя на каждый из 984 лампов (−3,4 КБ);
-- пул объектов только под объекты текущей сложности + 16;
-- `line_t` 36 → 10 Б: dx/dy/bbox/slopetype считаются из вершин, вершины/стороны/тег читаются из LINEDEFS через пейджер (`P_LineRO`, кэш 64 линий); фиктивная линия A_BossDeath через `_g_fakeline`;
-- FZSPR (`tools/fzspr.py`): таблица кадров спрайтов офлайн, кэш 32 кадров; совпадение с R_InitSprites проверено (`-DFZ_SPRCHECK`, 238 кадров);
-- `side_t` 16 → 8 Б (индекс сектора, текстуры байтом: формат Doom8088 и так ограничивает их 256);
-- `mobj_t` 128 → 116 Б (поля по размеру, sprite/type байтом);
-- `sector->lines` → индексы `linenums` (`SEC_LINE`).
+What helped:
+- lumpcache: 64 entries instead of a pointer for each of the 984 lumps (−3.4 KB);
+- object pool only for the objects of the current difficulty + 16;
+- `line_t` 36 → 10 B: dx/dy/bbox/slopetype are computed from the vertices; vertices/sides/tag are read from LINEDEFS through the pager (`P_LineRO`, cache of 64 lines); the fake line for A_BossDeath goes through `_g_fakeline`;
+- FZSPR (`tools/fzspr.py`): sprite frame table built offline, cache of 32 frames; match with R_InitSprites verified (`-DFZ_SPRCHECK`, 238 frames);
+- `side_t` 16 → 8 B (sector index, textures as a byte: the Doom8088 format already limits them to 256);
+- `mobj_t` 128 → 116 B (fields sized to fit, sprite/type as a byte);
+- `sector->lines` → `linenums` indices (`SEC_LINE`).
 
-Поведение игры не менялось: на одном маршруте время SD в симуляторе совпадает до сотых после каждого шага.
+Game behavior did not change: on the same route the SD time in the simulator matches to the hundredth after each step.
 
-На E1M4/E1M9 SD 32–36 мс/кадр: спящие монстры раз в 10 тиков проверяют видимость игрока через BSP и линии всей карты. Решили оставить как в оригинале.
+On E1M4/E1M9 SD is 32–36 ms/frame: sleeping monsters check every 10 tics whether they can see the player, through the BSP and the lines of the whole map. Decided to keep it as in the original.
 
-Зона из кусков (`Z_Init` под FLIPPER_DOOM, API v4): любое число регионов (до 16), между регионами статический блок-мост, как EMS в Doom8088. Загрузчик берёт крупнейшие свободные блоки по очереди, оставляя HEAP_RESERVE. Пул объектов при нехватке куска делится пополам. LINEDEFS/SIDEDEFS при загрузке читаются по записи через пейджер (лампы до 20 КБ не помещались в кусок). Проверка `FZ_ZONE_SPLIT` + `FZ_CHECKHEAP`: E1M4 в кусках по 10 КБ требует 90 КБ (в одном куске 81); куски меньше 10 КБ не подходят (массивы линий и секторов по 8,3 КБ).
+Zone made of chunks (`Z_Init` under FLIPPER_DOOM, API v4): any number of regions (up to 16), with a static bridge block between regions, like EMS in Doom8088. The loader takes the largest free blocks one by one, leaving HEAP_RESERVE. The object pool is split in half if a chunk is too small. LINEDEFS/SIDEDEFS are read record by record through the pager at load time (lumps up to 20 KB did not fit in a chunk). Check with `FZ_ZONE_SPLIT` + `FZ_CHECKHEAP`: E1M4 in 10 KB chunks needs 90 KB (81 in one chunk); chunks smaller than 10 KB do not work (line and sector arrays are 8.3 KB each).
 
-Причина: на устройстве при той же свободной памяти (118 КБ) крупнейший блок бывал 101 КБ вместо 114, зона выходила 70 КБ, и старый загрузчик (ZONE_MIN 80) падал.
+Reason: on the device, with the same free memory (118 KB), the largest block was sometimes 101 KB instead of 114, the zone came out at 70 KB, and the old loader (ZONE_MIN 80) failed.
 
-Флеш: образ 105,8 из 106,5 КБ. Для новых правок придётся освобождать место (кандидат: автокарта am_map).
+Flash: image 105.8 of 106.5 KB. New changes will require freeing space (candidate: the am_map automap).
 
-## Звук и музыка (12.10.2026)
+## Sound and music (12.10.2026)
 
-- Эффекты: оригинальные DS* из doom1.wad (8 бит, 11025 Гц), добавлены в FZDOOM.WAD в порядке DP* (`fztex.py ... doom1.wad`). Проигрывание как у WAV-плеера Flipper: TIM16 8-битный ШИМ динамика, TIM2 на 11025 Гц дёргает DMA1 Ch1 из кольца 2×512 Б, поток DoomSound подкачивает половины (`fap/sound.c`). Громкость по расстоянию от движка (0..120).
-- Музыка: MUS отрендерены libADLMIDI (WSL ~/libADLMIDI, банк 16 DMX Bobby Prince v1, `-vm 3`, Nuked OPL2) в `wad/music/*.PCM` (u8, 11025 Гц, 18,6 МБ), `tools/mkmusic.py`; на SD в `apps_data/flipper_doom/music/`, крутятся по кругу, эффекты поверх, музыка приглушается под эффектом.
-- Громкость: `tools/loudness.py` (срез низа 280 Гц, полка +5 дБ на 1,8 кГц, компрессор, мягкий лимитер): музыка ~+8 дБ, эффекты ~+9 дБ.
-- Грабли: файл в прошивке нельзя открыть дважды (второй open ждёт закрытия первого), поэтому поток звука читает WAD через общий дескриптор загрузчика под мьютексом. Меню: Sound / Music on/off (`sound.conf`).
+- Effects: the original DS* from doom1.wad (8 bit, 11025 Hz), added to FZDOOM.WAD in DP* order (`fztex.py ... doom1.wad`). Playback works like the Flipper WAV player: TIM16 8-bit PWM on the speaker, TIM2 at 11025 Hz triggers DMA1 Ch1 from a 2×512 B ring, the DoomSound thread refills the halves (`fap/sound.c`). Volume by distance from the engine (0..120).
+- Music: MUS rendered with libADLMIDI (WSL ~/libADLMIDI, bank 16 DMX Bobby Prince v1, `-vm 3`, Nuked OPL2) into `wad/music/*.PCM` (u8, 11025 Hz, 18.6 MB), `tools/mkmusic.py`; on SD in `apps_data/flipper_doom/music/`, looped, effects mixed on top, music ducked under effects.
+- Loudness: `tools/loudness.py` (low cut at 280 Hz, +5 dB shelf at 1.8 kHz, compressor, soft limiter): music ~+8 dB, effects ~+9 dB.
+- Pitfalls: the firmware cannot open a file twice (the second open waits for the first to close), so the sound thread reads the WAD through the loader's shared handle under a mutex. Menu: Sound / Music on/off (`sound.conf`).
 
-## Все карты E1 в памяти (12.10.2026)
+## All E1 maps fit in memory (12.10.2026)
 
-Сделано (каждый шаг проверен: поведение на маршрутах совпадает, ASan + `FZ_CHECKHEAP` чисты на всех 9 картах):
-- автокарта и оригинальный статус-бар заглушены (−5,5 КБ флеша);
-- msecnode убраны, P_CheckSector обходит blockmap по рамке сектора, как Doom 1.9;
-- статические объекты (тип ≥ MT_MISC0: предметы и декорации) — префикс mobj_t 64 Б вместо 116, свой пул; проверено отдельными аллокациями под ASan (`-DFZ_STATIC_ASAN`, сейчас несовместимо с короткими указателями blockmap);
-- line_t 2 Б (validcount битом, r_flags на лету), subsector 4 Б, side 8 Б, sector 36 Б;
-- blockmap: 16-битные короткие указатели (смещение от начала зоны /4), bprev с тегом для головы цепочки;
-- лампы `E1MxSEC` (`tools/fzsec.py`): списки линий секторов, точки звука, рамки blockmap офлайн, сверено с движком на всех картах;
-- THINGS/LINEDEFS/SIDEDEFS при загрузке читаются по записи; спрайты: из зоны, если влезают, иначе столбцами через пейджер;
-- REJECT: столбец сектора игрока кэшируется (те же ответы);
-- пейджер: 16 статических страниц + страницы из свободной зоны после загрузки уровня (резерв 4 КБ), отдаются обратно при нехватке (`PG_ReleasePages` из Z_Malloc);
-- верх BSP (63 узла) в памяти;
-- зона из кусков (до 16 регионов).
+Done (each step verified: behavior on routes matches, ASan + `FZ_CHECKHEAP` clean on all 9 maps):
+- automap and original status bar stubbed out (−5.5 KB of flash);
+- msecnodes removed; P_CheckSector walks the blockmap over the sector's bounding box, like Doom 1.9;
+- static objects (type ≥ MT_MISC0: items and decorations) use a 64 B mobj_t prefix instead of 116, with their own pool; verified with separate allocations under ASan (`-DFZ_STATIC_ASAN`, currently incompatible with short blockmap pointers);
+- line_t 2 B (validcount as a bit, r_flags computed on the fly), subsector 4 B, side 8 B, sector 36 B;
+- blockmap: 16-bit short pointers (offset from the zone start /4), bprev with a tag for the chain head;
+- `E1MxSEC` lumps (`tools/fzsec.py`): sector line lists, sound origins, blockmap bounding boxes built offline, checked against the engine on all maps;
+- THINGS/LINEDEFS/SIDEDEFS are read record by record at load; sprites: from the zone if they fit, otherwise column by column through the pager;
+- REJECT: the player sector's column is cached (same answers);
+- pager: 16 static pages + pages from free zone space after level load (4 KB reserve), given back when memory runs short (`PG_ReleasePages` from Z_Malloc);
+- top of the BSP (63 nodes) kept in memory;
+- zone made of chunks (up to 16 regions).
 
-Минимальная зона (КБ, симулятор): E1M1 38, E1M2 52, E1M3 58, E1M4 46, E1M5 50, E1M6 75, E1M7 55, E1M8 37, E1M9 57. На флиппере со звуком зона 82,3 КБ: все карты запускаются.
+Minimal zone (KB, simulator): E1M1 38, E1M2 52, E1M3 58, E1M4 46, E1M5 50, E1M6 75, E1M7 55, E1M8 37, E1M9 57. On the Flipper with sound the zone is 82.3 KB: all maps start.
 
-Скорость на флиппере: E1M1 ~19 fps; E1M6 4,4 fps, из них SD ~177 мс/кадр. Замер `tools/sdbench`: чтение 512 Б по границе сектора через файловый API 1,0 мс, напрямую через HAL 0,67 мс (1 сектор, но идёт через несинхронизированный кэш секторов прошивки), 1,03 мс (2 сектора); невыровненное 1,7 мс. В игре ~1,8 мс: поток серого (75 подкадров/с × 2,5 мс сборки + 2,6 мс отправки в ЖК по той же шине SPI) занимает ~40% CPU.
+Speed on the Flipper: E1M1 ~19 fps; E1M6 4.4 fps, of which SD ~177 ms/frame. Measured with `tools/sdbench`: a sector-aligned 512 B read through the file API 1.0 ms, directly through the HAL 0.67 ms (1 sector, but it goes through the firmware's unsynchronized sector cache), 1.03 ms (2 sectors); unaligned 1.7 ms. In game ~1.8 ms: the gray thread (75 subframes/s × 2.5 ms build + 2.6 ms send to the LCD over the same SPI bus) takes ~40% CPU.
 
-Переходы между уровнями и смерть (12.10.2026): интермиссия не находила 3,3 КБ под свои патчи после большой карты (уровень держится в зоне до следующего P_SetupLevel), E1M6 → E1M7 падал. Теперь `P_UnloadLevel` в G_DoCompleted освобождает уровень, кэш страниц и вычищает кэш лампов до интермиссии; перед добавлением страниц к пейджеру вычищается кэш (`Z_PurgeCache`), пейджер берёт до 4 кусков зоны (таблица слотов статическая, 127). В лог пишется «E1Mx: page cache +N B» при каждой загрузке.
+Level transitions and death (12.10.2026): the intermission could not find 3.3 KB for its patches after a large map (the level stays in the zone until the next P_SetupLevel), and E1M6 → E1M7 crashed. Now `P_UnloadLevel` in G_DoCompleted frees the level and the page cache and purges the lump cache before the intermission; before pages are added to the pager the cache is purged (`Z_PurgeCache`), and the pager takes up to 4 zone chunks (the slot table is static, 127). The log gets "E1Mx: page cache +N B" on every load.
 
-Замер на устройстве показал: переход и смерть ни при чём (E1M2 после перехода и из меню одинаковы, 8-9 fps на старте). Причина — спрайты: когда видимые спрайты не помещаются в зону, каждый грузился поверх другого, каждый кадр (E1M2: 13-35 чтений SD за кадр, в бою на E1M1 тоже). Теперь `W_TryGetLumpByNum` не вытесняет лампы, нарисованные в этом или прошлом кадре (`W_NewFrame`), остальные идут по столбцам через пейджер. Симулятор: E1M2 21,7 → 2,1 мс SD/кадр. Лог флиппера: каждые 100 кадров fps, SD мс/кадр и чтения; лог копится всю сессию приложения. Симулятор: FZ_DIE_AT, FZ_MISSLOG, «all SD reads in play» (без загрузок уровня). MAXOPENINGS ×7 (E1M2 просил 728 при 720). Кнопки (12.10, «заедают» на медленных кадрах): пробовал очередь событий с временем (API v7, каждому тику нажатия его момента) — пользователю стало хуже, даже с постройкой последних тиков при выбросе; откатил. Сейчас API v8: опрос текущего состояния как раньше + `buttons_pressed()` (нажатия с прошлого опроса), чтобы клик короче кадра не терялся.
+A measurement on the device showed that transitions and death are not the cause (E1M2 after a transition and from the menu are the same, 8-9 fps at the start). The cause is sprites: when the visible sprites do not fit in the zone, each one was loaded over another, every frame (E1M2: 13-35 SD reads per frame, also in combat on E1M1). Now `W_TryGetLumpByNum` does not evict lumps drawn in this or the previous frame (`W_NewFrame`); the rest go column by column through the pager. Simulator: E1M2 21.7 → 2.1 ms SD/frame. Flipper log: every 100 frames fps, SD ms/frame and reads; the log accumulates over the whole app session. Simulator: FZ_DIE_AT, FZ_MISSLOG, "all SD reads in play" (excluding level loads). MAXOPENINGS ×7 (E1M2 asked for 728 with 720). Buttons (12.10, "sticking" on slow frames): tried a timestamped event queue (API v7, each tic gets the presses from its moment) — it felt worse in testing, even with rebuilding the last tics on overflow; reverted. Now API v8: polling the current state as before + `buttons_pressed()` (presses since the last poll), so a click shorter than a frame is not lost.
 
-Проверки видимости (с разрешения пользователя 12.10, «но чтобы не тупили»): ответ «монстр видит игрока» запоминается — 4 тика для преследующего, 20 для ещё не заметившего (SIGHT_MEMO_TICS / SIGHT_MEMO_IDLE_TICS в defs.sh, таблица 64×4 Б, 2-way). Чтения SD от проверок видимости −16% на E1M3, −10-30% на E1M2/E1M9; мерить в реальном времени (sim/sightsweep.sh), FZ_FAST пакует много тиков в кадр. Атрибуция чтений: EXTRA=-DFZ_READSTATS. На E1M3/E1M6/E1M9 всё равно остаются проверки видимости (SEGS/LINEDEFS/NODES) — следующий шаг «данные видимости».
+Sight checks (approved 12.10, "as long as they don't get dumb"): the answer "the monster sees the player" is memoized — 4 tics for a chasing monster, 20 for one that has not noticed the player yet (SIGHT_MEMO_TICS / SIGHT_MEMO_IDLE_TICS in defs.sh, table 64×4 B, 2-way). SD reads from sight checks −16% on E1M3, −10-30% on E1M2/E1M9; measure in real time (sim/sightsweep.sh), FZ_FAST packs many tics into one frame. Read attribution: EXTRA=-DFZ_READSTATS. On E1M3/E1M6/E1M9 sight checks still remain (SEGS/LINEDEFS/NODES) — the next step is "sight data".
 
-Дальше по скорости (в порядке выбора):
-1. Лампа «данных видимости»: сегменты с концами и флагами линий подряд в порядке обхода BSP, чтобы P_CheckSight не прыгал по SEGS/LINEDEFS.
-2. Ускорить сборку подкадра (2,5 → ~1 мс).
-3. Отправка кадра в ЖК через DMA (свой драйвер), ~20% CPU.
-4. Опционально: ограничить число тиков на кадр (игра замедляется вместо пропуска).
+Next for speed (in order of choice):
+1. A "sight data" lump: segments with endpoints and line flags laid out contiguously in BSP traversal order, so that P_CheckSight does not jump around SEGS/LINEDEFS.
+2. Speed up subframe building (2.5 → ~1 ms).
+3. Send the frame to the LCD via DMA (own driver), ~20% CPU.
+4. Optional: limit the number of tics per frame (the game slows down instead of skipping).
 
-## Инструменты
-- `tools/framedump`: headless-бэкенд doomgeneric, проигрывает демо и сбрасывает кадры (RGB) и ID-буфер объектов. Патч рендерера: `doomgeneric-ids.patch`. Сборка в WSL: `bash build.sh demo1`.
-- `tools/ditherlab`: Python-прототипы (`ditherlab.py`, `aware.py`, `clips.py`).
+## Tools
+- `tools/framedump`: headless doomgeneric backend; plays a demo and dumps frames (RGB) and an object ID buffer. Renderer patch: `doomgeneric-ids.patch`. Build in WSL: `bash build.sh demo1`.
+- `tools/ditherlab`: Python prototypes (`ditherlab.py`, `aware.py`, `clips.py`).
 
-## Дальше
-1. Снять `free` и `ps` на устройстве.
-2. Собрать официальную прошивку через fbt с пустым встроенным приложением, урезать список приложений, замерить свободный flash.
-3. Перенести движок next-hack на Furi (ввод, таймер, вывод на canvas, SD).
-4. Конвертер WAD → формат для Flipper.
-5. Дизеринг G в C внутри рендерера.
+## Next
+1. Capture `free` and `ps` on the device.
+2. Build the official firmware via fbt with an empty built-in app, trim the app list, measure free flash.
+3. Port the next-hack engine to Furi (input, timer, canvas output, SD).
+4. WAD → Flipper format converter.
+5. Dithering G in C inside the renderer.
 
-## Меню в стиле Doom (12.10.2026)
+## Doom-style menu (12.10.2026)
 
-- Экраны загрузчика: `fap/ui.c` (логотип M_DOOM, шрифт STCFN, череп M_SKULL из doom1.wad через `tools/mkui.py`; логотипы в `files/ui.bin`, читаются с SD — что держит FAP, отнимается у зоны). Экран собирается в первом куске зоны (в меню движок не работает) и копируется в кадр целиком.
-- Фон меню — записанный геймплей: `FZ_NOHUD=1 FZ_PERIOD=15 FZ_DUMP1=demo.bin ./fzsim -nosound -timedemo demo3` (сборка с `-DSIGHT_MEMO_TICS=0`, чтобы демка не рассинхронилась), `tools/mkbg.py` → `apps_data/flipper_doom/MENUBG.BIN` (1067 кадров, 17.5 fps, 4.4 МБ), осветлён до 60% (WASH), текст тёмный со светлым ореолом. Превью: `tools/uipreview.py`.
-- `fap/doom_menu.c`: дерево Doom (New Game → уровень с названием → сложность, подтверждение Nightmare; Options → громкость 0-15 ползунками, калибровка; Read This! — управление; Quit — фразы Doom 1.9 и звук выхода), звуки меню (DSPSTOP/DSPISTOL/DSSWTCHX/DSSWTCHN/DSSTNMOV), музыка D_INTRO. Выбор уровня и сложности в `menu.conf`, громкости в sound.conf («Vem»).
-- API v9: `start_skill`, движок понимает `-skill 1..5`. На UV/Nightmare E1M6 не влезает в зону 80 КБ, у остальных кэш страниц меньше (E1M3 7.5 КБ).
+- Loader screens: `fap/ui.c` (M_DOOM logo, STCFN font, M_SKULL skull from doom1.wad via `tools/mkui.py`; logos in `files/ui.bin`, read from SD — whatever the FAP holds is taken from the zone). The screen is built in the first zone chunk (the engine is not running in the menu) and copied to the frame as a whole.
+- The menu background is recorded gameplay: `FZ_NOHUD=1 FZ_PERIOD=15 FZ_DUMP1=demo.bin ./fzsim -nosound -timedemo demo3` (built with `-DSIGHT_MEMO_TICS=0` so the demo does not desync), `tools/mkbg.py` → `apps_data/flipper_doom/MENUBG.BIN` (1067 frames, 17.5 fps, 4.4 MB), lightened to 60% (WASH), dark text with a light halo. Preview: `tools/uipreview.py`.
+- `fap/doom_menu.c`: the Doom tree (New Game → level with its name → difficulty, Nightmare confirmation; Options → volume 0-15 with sliders, calibration; Read This! — controls; Quit — Doom 1.9 quit messages and exit sound), menu sounds (DSPSTOP/DSPISTOL/DSSWTCHX/DSSWTCHN/DSSTNMOV), D_INTRO music. Level and difficulty selection in `menu.conf`, volumes in sound.conf (`V` + two hex digits (effects, music)).
+- API v9: `start_skill`, the engine accepts `-skill 1..5`. On UV/Nightmare E1M6 does not fit in an 80 KB zone; the other maps get a smaller page cache (E1M3 7.5 KB).
