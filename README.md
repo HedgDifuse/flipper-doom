@@ -65,8 +65,17 @@ On Ultra-Violence and Nightmare E1M6 does not fit in memory (more monsters).
 
 ## Install
 
-You need a Flipper Zero on the official firmware (tested on 1.5.1) and your own
-Doom 1.9 IWAD (the shareware `doom1.wad` works).
+You need a Flipper Zero on the official firmware **1.5.1-rc** and your own Doom
+1.9 IWAD (the shareware `doom1.wad` works).
+
+**Only firmware 1.5.1-rc is supported.** The engine is written to a fixed flash
+address, `0x080BD000`, just past the end of that firmware's code. Another build
+may end higher, and writing there would destroy it, so the app refuses to
+install on any other version. If you know that your firmware ends below
+`0x080BD000` (see its `.map` file), you can override the check by creating the
+file `apps_data/flipper_doom/allow_any_firmware` on the SD card, at your own
+risk. Better ways to find a free area (or a list of safe firmware versions)
+are welcome as contributions.
 
 1. Build (below) or take a release, then copy to the SD card:
    - `flipper_doom.fap` to `apps/Games/`
