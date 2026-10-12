@@ -1,0 +1,11 @@
+App(
+    appid="flipper_doom",
+    name="DOOM",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="doom_app",
+    stack_size=6 * 1024, # 4.5 KB hung when sliding along walls
+    fap_category="Games",
+    fap_icon="icon.png", # 10x10, the D of the logo
+    fap_file_assets="files",
+    sources=["doom_loader.c", "flash_install.c", "gray_display.c", "calibration.c", "sound.c", "ui.c", "doom_menu.c"],
+)

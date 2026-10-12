@@ -1,0 +1,140 @@
+diff --git a/doomgeneric/dg_ids.h b/doomgeneric/dg_ids.h
+new file mode 100644
+index 0000000..6ef7d11
+--- /dev/null
++++ b/doomgeneric/dg_ids.h
+@@ -0,0 +1,15 @@
++// Per-pixel object ID buffer for the dithering lab (not part of the port).
++// id = class << 12 | index. Classes below.
++#ifndef DG_IDS_H
++#define DG_IDS_H
++#include <stdint.h>
++#include "i_video.h"
++enum { DGID_NONE, DGID_WALL, DGID_PLANE, DGID_SPRITE, DGID_WEAPON, DGID_SKY };
++extern uint16_t dg_idbuf[SCREENWIDTH * SCREENHEIGHT];
++extern uint16_t dg_curid;
++#define DG_ID(cls, idx) dg_curid = (uint16_t)(((cls) << 12) | ((idx) & 0xfff))
++#define DG_ID_COL() do { for (int _y = dc_yl; _y <= dc_yh; _y++) \
++    dg_idbuf[ylookup[_y] + columnofs[dc_x] - I_VideoBuffer] = dg_curid; } while (0)
++#define DG_ID_SPAN() do { for (int _x = ds_x1; _x <= ds_x2; _x++) \
++    dg_idbuf[ylookup[ds_y] + columnofs[_x] - I_VideoBuffer] = dg_curid; } while (0)
++#endif
+diff --git a/doomgeneric/r_draw.c b/doomgeneric/r_draw.c
+index 9271bcd..45f3d56 100644
+--- a/doomgeneric/r_draw.c
++++ b/doomgeneric/r_draw.c
+@@ -29,6 +29,9 @@
+ #include "w_wad.h"
+ 
+ #include "r_local.h"
++#include "dg_ids.h"
++uint16_t dg_idbuf[SCREENWIDTH * SCREENHEIGHT];
++uint16_t dg_curid;
+ 
+ // Needs access to LFB (guess what).
+ #include "v_video.h"
+@@ -100,7 +103,7 @@ int			dccount;
+ //  be used. It has also been used with Wolfenstein 3D.
+ // 
+ void R_DrawColumn (void) 
+-{ 
++{ DG_ID_COL(); 
+     int			count; 
+     byte*		dest; 
+     fixed_t		frac;
+@@ -281,7 +284,7 @@ int	fuzzpos = 0;
+ //  i.e. spectres and invisible players.
+ //
+ void R_DrawFuzzColumn (void) 
+-{ 
++{ DG_ID_COL(); 
+     int			count; 
+     byte*		dest; 
+     fixed_t		frac;
+@@ -422,7 +425,7 @@ byte*	dc_translation;
+ byte*	translationtables;
+ 
+ void R_DrawTranslatedColumn (void) 
+-{ 
++{ DG_ID_COL(); 
+     int			count; 
+     byte*		dest; 
+     fixed_t		frac;
+@@ -588,7 +591,7 @@ int			dscount;
+ //
+ // Draws the actual span.
+ void R_DrawSpan (void) 
+-{ 
++{ DG_ID_SPAN(); 
+     unsigned int position, step;
+     byte *dest;
+     int count;
+diff --git a/doomgeneric/r_plane.c b/doomgeneric/r_plane.c
+index ea1611c..44a1c40 100644
+--- a/doomgeneric/r_plane.c
++++ b/doomgeneric/r_plane.c
+@@ -30,6 +30,7 @@
+ #include "doomstat.h"
+ 
+ #include "r_local.h"
++#include "dg_ids.h"
+ #include "r_sky.h"
+ 
+ 
+@@ -384,6 +385,7 @@ void R_DrawPlanes (void)
+     {
+ 	if (pl->minx > pl->maxx)
+ 	    continue;
++	DG_ID(pl->picnum == skyflatnum ? DGID_SKY : DGID_PLANE, pl - visplanes + 1);
+ 
+ 	
+ 	// sky flat
+diff --git a/doomgeneric/r_segs.c b/doomgeneric/r_segs.c
+index 9b4e413..dbced53 100644
+--- a/doomgeneric/r_segs.c
++++ b/doomgeneric/r_segs.c
+@@ -30,6 +30,7 @@
+ #include "doomstat.h"
+ 
+ #include "r_local.h"
++#include "dg_ids.h"
+ #include "r_sky.h"
+ 
+ 
+@@ -207,6 +208,7 @@ void R_RenderSegLoop (void)
+     int			top;
+     int			bottom;
+ 
++    DG_ID(DGID_WALL, curline - segs + 1);
+     for ( ; rw_x < rw_stopx ; rw_x++)
+     {
+ 	// mark floor / ceiling areas
+diff --git a/doomgeneric/r_things.c b/doomgeneric/r_things.c
+index 74e7369..490d4a0 100644
+--- a/doomgeneric/r_things.c
++++ b/doomgeneric/r_things.c
+@@ -32,6 +32,7 @@
+ #include "w_wad.h"
+ 
+ #include "r_local.h"
++#include "dg_ids.h"
+ 
+ #include "doomstat.h"
+ 
+@@ -397,6 +398,7 @@ R_DrawVisSprite
+     patch_t*		patch;
+ 	
+ 	
++    if ((dg_curid >> 12) != DGID_WEAPON) DG_ID(DGID_SPRITE, vis - vissprites + 1);
+     patch = W_CacheLumpNum (vis->patch+firstspritelump, PU_CACHE);
+ 
+     dc_colormap = vis->colormap;
+@@ -763,7 +765,7 @@ void R_DrawPlayerSprites (void)
+ 	 i++,psp++)
+     {
+ 	if (psp->state)
+-	    R_DrawPSprite (psp);
++	    { DG_ID(DGID_WEAPON, i + 1); R_DrawPSprite (psp); DG_ID(DGID_NONE, 0); }
+     }
+ }
+ 

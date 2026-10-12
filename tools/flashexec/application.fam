@@ -1,0 +1,8 @@
+App(
+    appid="flashexec",
+    name="Flash Exec Test",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="flashexec_app",
+    stack_size=4 * 1024,
+    fap_category="Tools",
+)

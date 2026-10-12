@@ -1,0 +1,8 @@
+App(
+    appid="sdbench",
+    name="SD Bench",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="sdbench_app",
+    stack_size=4 * 1024,
+    fap_category="Tools",
+)

@@ -1,0 +1,44 @@
+# id Software's data and everything made from it: bring your own doom1.wad
+wad/
+*.WAD
+*.wad
+*.PCM
+MENUBG.BIN
+port/flipper/fap/ui_assets.h
+port/flipper/fap/files/
+port/platform/fz_lumcolormap.c
+
+# other people's projects, kept for reference
+ref/
+
+# build output
+dist/
+port/flipper/out/
+port/sim/fzsim
+port/sim/fzsim_instr
+__pycache__/
+
+# simulator and lab dumps
+*.bin
+*.rgb
+*.ids
+*.npy
+*.log
+port/sim/*.png
+port/sim/*.txt
+port/sim/*.orig
+port/sim/*.bak*
+tools/framedump/dgdump
+tools/framedump/dgdump.exe
+tools/framedump/*.png
+tools/framedump/*/
+tools/ditherlab/out/
+tools/ditherlab/clips/
+tools/ditherlab/compare.html
+
+# one-off source rewrites done while porting (their result is in port/)
+port/sim/patch_*.py
+port/sim/fix*.py
+
+# editor files with local paths
+.vscode/
