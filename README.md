@@ -63,6 +63,24 @@ cache and the more the SD card is read.
 
 On Ultra-Violence and Nightmare E1M6 does not fit in memory (more monsters).
 
+## Roadmap
+
+- [x] Doom8088 engine running from the internal flash gap, installed by the app
+- [x] All nine maps of episode 1 fit in memory (demand paging from the SD card)
+- [x] Gray levels on the 1-bit LCD with per-device calibration
+- [x] Renderer-aware dithering: geometry edges, sprite outlines and halos
+- [x] Original sound effects and music
+- [x] Doom's menu: skill levels, volume sliders, quit messages, demo background
+- [x] Level transitions and deaths without losing speed
+- [x] Short button presses never lost on slow frames
+- [ ] Faster big maps (E1M3, E1M6, E1M9): precomputed line-of-sight data instead of reading the map from the SD card
+- [ ] A cheaper gray display (faster subframe building, LCD transfer by DMA) to leave more CPU to the game
+- [ ] E1M6 on Ultra-Violence and Nightmare (does not fit in memory yet)
+- [ ] Other firmware versions: find a free flash area instead of a fixed address
+- [ ] A release build that takes the menu graphics from the player's own WAD
+- [ ] Automap
+- [ ] Saved games
+
 ## Install
 
 You need a Flipper Zero on the official firmware **1.5.1-rc** and your own Doom
