@@ -323,6 +323,10 @@ int fz_engine_main(const fz_api_t* loader_api)
 	map[0] = '0' + api->start_map;
 	skill[0] = '0' + api->start_skill;
 	static const char* argv[] = {"doom", "-warp", map, "-skill", skill};
-	D_DoomMain(5, argv);
+	static const char* benchmark[] = {"doom", "-timedemo", "demo3"}; // ends with I_Error("Timed ...")
+	if (api->start_map == 0)
+		D_DoomMain(3, benchmark);
+	else
+		D_DoomMain(5, argv);
 	return 0;
 }

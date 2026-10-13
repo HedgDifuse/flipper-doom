@@ -59,7 +59,7 @@ typedef struct
 	uint8_t        gray_period;
 	const uint8_t* lum_to_level; // 64 entries from fz_build_lum_to_level()
 
-	uint8_t start_map;   // E1Mx
+	uint8_t start_map;   // E1Mx; 0 = benchmark: play demo3 as fast as possible (-timedemo)
 	uint8_t start_skill; // 1 (I'm too young to die) .. 5 (Nightmare!)
 
 	int  (*vsnprintf)(char* str, size_t size, const char* format, va_list args);

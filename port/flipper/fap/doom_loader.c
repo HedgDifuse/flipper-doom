@@ -45,6 +45,8 @@
 #define ZONE_PIECES     16 // FZ_ZONE_MAX_REGIONS
 #define HEAP_RESERVE    (6 * 1024) // stays free for the firmware while the engine runs
 #define RUN_LOG      EXT_PATH("apps_data/flipper_doom/last_run.txt")
+// while this file exists, New Game runs Doom's demo3 as a benchmark (-timedemo)
+#define BENCHMARK    EXT_PATH("apps_data/flipper_doom/benchmark")
 #define MAX_ALLOCS   8
 
 int __wrap_vsnprintf(char* str, size_t size, const char* format, va_list args);
@@ -82,14 +84,14 @@ typedef struct
 	uint8_t zone_pieces;
 	size_t zone_size; // all pieces
 	char reserve_log[160];
-	char engine_message[96];
+	char engine_message[96]; // the last line the engine logged (its error, if it failed)
 	Sound* sound;
 	FuriMutex* wad_lock; // app->wad is shared with the sound thread
 	// the menu's sounds in the WAD (menu_sounds order)
 	uint32_t sound_pos[16];
 	uint16_t sound_len[16];
 	void* ui_scratch; // UI_SCRATCH bytes while a menu or splash is up (NULL: none)
-	bool ui_scratch_malloced; // the last line the engine logged (its error, if it failed)
+	bool ui_scratch_malloced;
 } DoomApp;
 
 static DoomApp* app; // the engine calls the api without a context
@@ -664,11 +666,19 @@ int32_t doom_app(void* p)
 					calibration_run(app->display, app->frame, &app->gray, app->input, app->storage);
 					continue;
 				}
-				char level[8];
-				snprintf(level, sizeof(level), "E1M%d", choice.map);
+				const bool benchmark = storage_file_exists(app->storage, BENCHMARK);
+				char level[16];
+				snprintf(level, sizeof(level), benchmark ? "BENCHMARK" : "E1M%d", choice.map);
 				show_splash(app, level, -1);
-				int result = run_engine(app, &hdr, choice.map, choice.skill);
-				if(result) {
+				int result = run_engine(app, &hdr, benchmark ? 0 : choice.map, choice.skill);
+				const char* fps = strstr(app->engine_message, "= ");
+				if(benchmark && strncmp(app->engine_message, "Timed ", 6) == 0 && fps) {
+					// "Timed 2134 gametics in 1234 realtics = 60.512 frames per second"
+					char line[32];
+					snprintf(line, sizeof(line), "demo3: %.*s fps", (int)strcspn(fps + 2, " "), fps + 2);
+					show_text(app, "Benchmark", line, "details: last_run.txt", "Back: menu");
+					wait_back(app);
+				} else if(result) {
 					// the engine's message, e.g. "E1M2: not enough memory (...)",
 					// on two lines; the details are in last_run.txt
 					char line1[32], line2[32];
