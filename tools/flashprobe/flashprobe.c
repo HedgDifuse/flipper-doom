@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Read-only probe: is the flash gap between firmware and the secure radio
 // area erased (0xFF)? Also reports heap seen from inside a FAP.
 // Result: /ext/apps_data/flashprobe.txt

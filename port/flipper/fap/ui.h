@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 // Doom-style screens of the loader (graphics from doom1.wad, see
 // tools/mkui.py): a light page, or recorded gameplay washed out behind the

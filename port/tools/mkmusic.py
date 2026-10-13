@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Render Doom's music (the MUS lumps of the IWAD) for the Flipper.
 
     mkmusic.py doom1.wad OUTDIR

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Doom-style graphics for the loader's screens, from doom1.wad.
 
   python port/tools/mkui.py wad/doom1.wad port/flipper/fap/ui_assets.h [preview_dir]

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // How fast can the SD card serve a demand-paging cache? Measures random reads
 // of various sizes from a WAD-sized file, plus sequential throughput.
 // Report: /ext/apps_data/sdbench.txt

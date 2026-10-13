@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Generate platform/fz_lumcolormap.c from the WAD's COLORMAP and PLAYPAL.
 
 The engine looks every pixel up in fullcolormap[light * 256 + palette index].

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """FZSPR: the sprite frame table, made offline (used by fztex.py).
 
 R_InitSprites built it in the zone at startup (about 7 KB): for every sprite

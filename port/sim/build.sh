@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build the Doom8088-based simulator (32-bit, WSL/Linux).
 # Usage: [EXTRA=-DFZ_MEMTRACE] ./build.sh   (zone size: FZ_ZONE_KB at run time)
 set -e

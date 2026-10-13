@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Engine configuration shared by the simulator, the size check and the device build.
 DOOM_DEFS=(
     -DFLAT_SPAN -DC_ONLY -DFLIPPER_DOOM

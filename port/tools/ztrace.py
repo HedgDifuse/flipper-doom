@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Sum FZ_ZTRACE zone allocations by caller: ztrace.py fzsim trace.txt"""
 import collections
 import subprocess

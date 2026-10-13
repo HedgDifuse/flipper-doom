@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Dithering lab: real Doom demo frames -> Flipper Zero 128x64 1-bit.
 
 Input: frames.rgb from tools/framedump (raw 320x200 RGB per game tic).

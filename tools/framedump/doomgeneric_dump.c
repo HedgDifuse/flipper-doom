@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Headless doomgeneric backend: plays a demo on a virtual clock and dumps
 // every 35 Hz game tic as a raw 320x200 RGB frame into frames.rgb and the
 // per-pixel object ID buffer (uint16 LE) into frames.ids.

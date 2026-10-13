@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: Doom's original sounds and music on the Flipper's speaker.
  *

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // flipper-doom: interface between the Doom8088 engine glue and the platform
 // (simulator on PC, Flipper Zero on device).
 #ifndef FZ_PLATFORM_H

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Render frames dumped by the simulator (FZ_DUMP) to PNG/GIF.
 
 Each frame is FZ_W x FZ_H bytes: 6-bit luminance + 2-bit pixel class.

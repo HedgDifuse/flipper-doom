@@ -157,7 +157,13 @@ of the problems before they reached the Flipper.
 
 ## License
 
-GPL-2.0, as Doom8088 (see [LICENSE](LICENSE)). Doom's game data is not part of
+Copyright (C) 2026 HedgDifuse. This is the original repository of this port.
+
+GPL-2.0-or-later, as Doom8088 (see [LICENSE](LICENSE)). The files written for
+this port carry the notice above; in the files that come from Doom8088 the
+changes made for this port are marked `flipper-doom`, and their original
+copyright notices are kept. Forks and redistributions must keep these notices
+(GPL-2.0, sections 1 and 2). Doom's game data is not part of
 this repository: bring your own IWAD.
 
 The gray-level technique, as described in [docs/grayscale.md](docs/grayscale.md),

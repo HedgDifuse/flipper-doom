@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Split engine code into hot (runs in steady gameplay) and cold, in ARM bytes.
 
     hotcode.py syms.txt armsyms.txt trace1.txt [trace2.txt ...]

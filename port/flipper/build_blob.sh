@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build the engine image for the flash gap: port/flipper/out/engine.bin
 set -e
 cd "$(dirname "$0")"

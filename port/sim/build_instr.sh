@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Research build: simulator with function-entry tracing (see fz_instr.c).
 # Usage: ./build_instr.sh  ->  fzsim_instr
 set -e

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Flash bytes per object file from a GNU ld map: mapsize.py engine.map [N]"""
 import collections
 import re

@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: HUD in the 8 columns right of the 3D view (x 120..127).
  *

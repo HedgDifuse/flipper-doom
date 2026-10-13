@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 import numpy as np, os
 from PIL import Image
 import ditherlab as D

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Renderer-aware 1-bit pipeline: uses the per-pixel object ID buffer that the
 real port gets for free from the renderer."""
 import numpy as np

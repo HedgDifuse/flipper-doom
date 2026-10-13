@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Make 11025 Hz audio as loud as the Flipper's piezo speaker allows.
 
 The piezo gives almost nothing below a few hundred Hz and is loudest around

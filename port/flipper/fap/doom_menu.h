@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 // Doom's menu on the loader's screen: New Game (level, skill), Options
 // (sound volumes, screen calibration), Read This!, Quit Game, over the

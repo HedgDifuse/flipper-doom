@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: luminance -> LCD gray level table, shared by the loader
  * (screen calibration) and the simulator. No engine dependencies.

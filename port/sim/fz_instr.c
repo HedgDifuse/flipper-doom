@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom sim: which functions run in steady gameplay? (research only)
  *

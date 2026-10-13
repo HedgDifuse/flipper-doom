@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Preview of the loader's screens as the LCD shows them (gray levels as a
 picture), composed the way ui.c does it.
 

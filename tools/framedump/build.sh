@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Build the headless frame dumper (Linux/WSL) and record a demo.
 # Usage: ./build.sh [demoN]
 set -e

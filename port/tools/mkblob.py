@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Pack the linked engine into the image the FAP installs into flash.
 
     mkblob.py engine.elf engine.flash engine.bin

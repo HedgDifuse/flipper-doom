@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: PC simulator platform (32-bit Linux, gcc -m32).
  *

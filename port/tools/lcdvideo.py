@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """A video of the simulator's frames as the Flipper's LCD shows them.
 
   FZ_PERIOD=8 FZ_GAMMA=0.8 FZ_DUMP1=lcd.bin ./fzsim -nosound -timedemo demo3

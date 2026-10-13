@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Run one flashexec step: python fx.py write|run|erase  (Flipper on COM3)."""
 import subprocess, sys, time
 import serial

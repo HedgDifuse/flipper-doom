@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Smallest zone (KB) that survives a scripted walk on E1M$1. Run in WSL after sim/build.sh.
 cd "$(dirname "$0")/../sim"
 MAP=$1; FRAMES=${FRAMES:-1500}

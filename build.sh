@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Builds everything the Flipper needs from your own copy of Doom.
 #
 #   wad/doom1.wad     the shareware (or registered) Doom 1.9 IWAD

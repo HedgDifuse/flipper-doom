@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # SD ms per frame in play (and the sight checks' reads) for "chase,idle" memo
 # tics; real-time clock (FZ_FAST packs many tics into a frame), maps in parallel
 cd "$(dirname "$0")"

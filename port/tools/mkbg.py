@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """The menu's background: gameplay recorded by the simulator, looped.
 
   FZ_NOHUD=1 FZ_PERIOD=15 FZ_DUMP1=demo.bin ./fzsim -nosound -timedemo demo3

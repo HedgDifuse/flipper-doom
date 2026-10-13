@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // LCD grayscale test: does flickering pixels faster than the slow STN panel
 // can follow give stable gray levels on the Flipper screen, and at what rate?
 //

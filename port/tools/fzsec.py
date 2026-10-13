@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """The sector data that never changes, made offline (used by fztex.py).
 
 For every map E1Mx a lump E1MxSEC with what P_GroupLines worked out in the

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Compile engine + platform glue for Cortex-M4 and report flash/RAM use.
 # Unresolved platform symbols are ignored; this is only for the budget.
 set -e

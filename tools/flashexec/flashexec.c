@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Proof of concept: a FAP writes code into the unused internal flash gap and
 // executes it in place (XIP). Mirrors the locking protocol of the official
 // furi_hal_flash.c (HSEM 2/6/7 + core2 mutex), which stock firmware no longer

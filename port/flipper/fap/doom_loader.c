@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: the Doom app. A small loader; the engine itself (Doom8088
  * port, ~100 KB) runs in place from the free internal flash gap, where this

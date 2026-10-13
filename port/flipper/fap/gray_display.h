@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // flipper-doom: gray levels on the 1-bit LCD by flashing subframes, see gray_display.c.
 #pragma once
 

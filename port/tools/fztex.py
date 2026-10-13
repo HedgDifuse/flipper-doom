@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Add the Flipper lumps to a Doom8088 WAD: FZTX (wall textures pre-composed)
 and FZSPR (sprite frame table).
 

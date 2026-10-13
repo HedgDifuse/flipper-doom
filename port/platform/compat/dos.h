@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 // flipper-doom: minimal stand-in for the DOS header. Only referenced by code
 // paths for EMS/XMS that are never taken on this platform.
 #ifndef FD_COMPAT_DOS_H

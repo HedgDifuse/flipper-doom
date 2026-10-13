@@ -1,3 +1,5 @@
+// Copyright (C) 2026 HedgDifuse
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * flipper-doom: contract between the FAP (loader, runs from RAM like any app)
  * and the engine image (installed into internal flash, runs in place).

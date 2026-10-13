@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Render LCD gray frames dumped by the simulator (FZ_DUMP1) as they would look
 on the Flipper: each level 0..period is a mix of backlight and pixel colour.
 

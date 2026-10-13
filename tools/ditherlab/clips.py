@@ -1,3 +1,5 @@
+# Copyright (C) 2026 HedgDifuse
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Animated comparison clips (temporal stability is what kills error diffusion)."""
 import os
 import numpy as np
